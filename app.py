@@ -1,171 +1,97 @@
 import streamlit as st
-import plotly.express as px
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
+import plotly.express as px
 from datetime import datetime
 
-st.set_page_config(page_title="WCO-SIGMA Pro", layout="wide", page_icon="🛡️")
+# CONFIGURACIÓN DE PÁGINA
+st.set_page_config(page_title="WCO-SIGMA HSEQ", layout="wide")
+
+# CONEXIÓN A GOOGLE SHEETS
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# --- LOGIN POR NIT ---
-st.sidebar.title("🔐 Acceso Clientes")
-nit_usuario = st.sidebar.text_input("Ingrese NIT (sin puntos)", "")
+# LOGIN SIMPLE POR NIT
+st.sidebar.image("https://cdn-icons-png.flaticon.com/512/1063/1063302.png", width=100)
+nit_usuario = st.sidebar.text_input("Ingrese el NIT de la Empresa:", "")
 
 if not nit_usuario:
-    st.title("🚀 WCO-SIGMA HSEQ")
-    st.info("Ingrese su NIT para gestionar sus inspecciones.")
+    st.title("🚀 Bienvenido a WCO-SIGMA")
+    st.info("Por favor, ingrese el NIT en la barra lateral para acceder a su gestión HSEQ.")
 else:
-    menu = st.sidebar.radio("Menú", ["📊 Panel de Control", "🔵 Reportar Inspección", "📂 Carpeta PHVA"])
-
-    # LEER DATOS REALES
-    # LEER DATOS REALES Y LIMPIAR TÍTULOS
-    df_total = conn.read()
-    
-    # Esta línea borra espacios invisibles en los títulos
-    df_total.columns = df_total.columns.str.strip() 
-    
-    # Filtramos usando el nombre exacto que pusiste
-    # Si pusiste 'Nit' con N mayúscula, esto lo encontrará
-    try:
-        df_empresa = df_total[df_total['Nit'].astype(str) == str(nit_usuario)]
-    except KeyError:
-        st.error("⚠️ Error de Estructura: No encontré la columna 'Nit' en tu Excel.")
-        st.write("Columnas detectadas en tu archivo:", list(df_total.columns))
-        st.stop()
-    df_empresa = df_total[df_total['Nit'].astype(str) == str(nit_usuario)]
-# --- SISTEMA DE NAVEGACIÓN ---
+    # NAVEGACIÓN
     menu = st.sidebar.radio("Gestión HSEQ", ["📊 Panel de Control", "🔵 Reportar Inspección", "📂 Carpeta PHVA"])
 
-    # LEER DATOS REALES Y LIMPIAR TÍTULOS
+    # LECTURA DE DATOS
     df_total = conn.read()
     df_total.columns = df_total.columns.str.strip()
-
-    # FILTRAR POR NIT
+    
+    # FILTRO POR EMPRESA
     df_empresa = df_total[df_total['Nit'].astype(str) == str(nit_usuario)]
 
-    # --- LÓGICA DE PANTALLAS ---
+    # --- PANTALLA 1: PANEL DE CONTROL ---
     if menu == "📊 Panel de Control":
         st.title(f"📊 Dashboard Ejecutivo - NIT: {nit_usuario}")
         
-        # MENSAJE ESPÍA 1: Para saber si entró al menú
-        st.write(f"DEBUG: Entraste al menú. Tienes {len(df_empresa)} registros.")
-
-        if len(df_empresa) > 0:
-            # MÉTRICAS
-            c1, c2, c3 = st.columns(3)
-            total_h = len(df_empresa)
-            abiertos = len(df_empresa[df_empresa['Estado'] == 'Abierto'])
-            
-            c1.metric("Total Hallazgos", total_h)
-            c2.metric("Pendientes", abiertos)
-            cumplimiento = int(((total_h-abiertos)/total_h)*100) if total_h > 0 else 0
-            c3.metric("Cumplimiento", f"{cumplimiento}%")
-
-            st.divider()
-
-            # GRÁFICOS
-            col_graf1, col_graf2 = st.columns(2)
-            with col_graf1:
-                # Usamos un gráfico simple primero para probar
-                fig1 = px.pie(df_empresa, names='Prioridad', title="Prioridad")
-                st.plotly_chart(fig1, use_container_width=True)
-            with col_graf2:
-                fig2 = px.bar(df_empresa, x='Estado', title="Estados")
-                st.plotly_chart(fig2, use_container_width=True)
-
-            st.write("### 📑 Detalle de Inspecciones")
-            st.dataframe(df_empresa, use_container_width=True)
-        else:
-            # MENSAJE ESPÍA 2: Por si la tabla está vacía para Python
-            st.warning("Atención: Python dice que no hay datos para graficar.")
-            st.dataframe(df_empresa) # Mostramos lo que sea que tenga
-        
         if not df_empresa.empty:
-            # 1. MÉTRICAS RÁPIDAS
+            # MÉTRICAS SUPERIORES
             c1, c2, c3 = st.columns(3)
-            total_h = len(df_empresa)
+            total = len(df_empresa)
             abiertos = len(df_empresa[df_empresa['Estado'] == 'Abierto'])
+            cumplimiento = int(((total - abiertos) / total) * 100) if total > 0 else 0
             
-            c1.metric("Total Hallazgos", total_h)
+            c1.metric("Inspecciones Totales", total)
             c2.metric("Pendientes (Abiertos)", abiertos, delta_color="inverse")
-            c3.metric("Cumplimiento", f"{int(((total_h-abiertos)/total_h)*100)}%" if total_h > 0 else "0%")
+            c3.metric("Nivel de Cumplimiento", f"{cumplimiento}%")
 
             st.divider()
 
-            # 2. CARACTERIZACIÓN GRÁFICA
-            col_graf1, col_graf2 = st.columns(2)
+            # GRÁFICOS INTERACTIVOS
+            g1, g2 = st.columns(2)
+            with g1:
+                fig_prio = px.pie(df_empresa, names='Prioridad', title="🔴 Gravedad de Hallazgos", hole=0.4)
+                st.plotly_chart(fig_prio, use_container_width=True)
+            with g2:
+                fig_est = px.bar(df_empresa, x='Estado', color='Estado', title="🟢 Avance de Gestión")
+                st.plotly_chart(fig_est, use_container_width=True)
 
-            with col_graf1:
-                st.write("### ⚖️ Prioridad de Riesgos")
-                # Creamos el gráfico de torta
-                fig_prioridad = px.pie(df_empresa, names='Prioridad', 
-                                     color='Prioridad',
-                                     color_discrete_map={'Alta':'#EF553B', 'Media':'#FECB52', 'Baja':'#636EFA'},
-                                     hole=0.4)
-                st.plotly_chart(fig_prioridad, use_container_width=True)
-
-            with col_graf2:
-                st.write("### 📈 Estado de Gestión")
-                # Creamos el gráfico de barras
-                fig_estado = px.bar(df_empresa, x='Estado', color='Estado',
-                                   title="Distribución por Estado")
-                st.plotly_chart(fig_estado, use_container_width=True)
-
-            st.write("### 📑 Detalle de Inspecciones")
+            st.write("### 📑 Historial de Inspecciones")
             st.dataframe(df_empresa, use_container_width=True)
-            
         else:
-            st.info("Aún no hay datos registrados para este NIT. Comienza en el menú 'Reportar Inspección'.")
+            st.warning("No se encontraron registros para este NIT. Inicie un reporte en el menú lateral.")
 
+    # --- PANTALLA 2: REPORTAR INSPECCIÓN ---
     elif menu == "🔵 Reportar Inspección":
-        st.title("🔵 Nuevo Reporte Técnico de Inspección")
-        with st.form("registro_detallado"):
+        st.title("🔵 Nuevo Reporte Técnico")
+        with st.form("form_registro"):
             col1, col2 = st.columns(2)
             with col1:
-                empresa_entrada = st.text_input("Nombre de la Empresa")
-                fecha_insp = st.date_input("Fecha", datetime.now())
-                componente = st.text_input("Componente (Ej: Extintores, Alturas)")
-                hallazgo = st.text_area("Descripción del Hallazgo")
-                f_riesgo = st.text_input("Factor de riesgo asociado")
-                clasificacion = st.selectbox("Clasificación", ["Físico", "Químico", "Biológico", "Psicosocial", "Biomecánico", "Condiciones de Seguridad", "Fenómenos Naturales"])
-            
+                empresa = st.text_input("Nombre de la Empresa")
+                fecha = st.date_input("Fecha", datetime.now())
+                componente = st.text_input("Componente")
+                hallazgo = st.text_area("Hallazgo detectado")
             with col2:
                 prioridad = st.selectbox("Prioridad", ["Baja", "Media", "Alta"])
-                responsable = st.text_input("Responsable del cierre")
-                fecha_prop = st.date_input("Fecha propuesta para el cierre")
                 estado = st.selectbox("Estado", ["Abierto", "En Proceso", "Cerrado"])
-                observacion = st.text_area("Observación adicional")
-
-            btn = st.form_submit_button("✅ GUARDAR EN BASE DE DATOS")
-            if btn and hallazgo:
-                # 1. Organizamos los datos para el DataFrame
-                datos_nuevos = pd.DataFrame([{
-                    "Nit": str(nit_usuario),
-                    "Empresa": empresa_entrada,
-                    "Fecha": str(fecha_insp),
-                    "Hallazgo": hallazgo,
-                    "Componente": componente,
-                    "Factor de riesgo asociado": f_riesgo,
-                    "Clasificación": clasificacion,
-                    "Responsable del cierre": responsable,
-                    "Fecha propuesta para el cierre": str(fecha_prop),
-                    "Prioridad": prioridad,
-                    "Estado": estado,
-                    "Observación": observacion
+                responsable = st.text_input("Responsable")
+                obs = st.text_area("Observaciones")
+            
+            submit = st.form_submit_button("✅ GUARDAR EN BASE DE DATOS")
+            
+            if submit and hallazgo:
+                nueva_fila = pd.DataFrame([{
+                    "Nit": str(nit_usuario), "Empresa": empresa, "Fecha": str(fecha),
+                    "Hallazgo": hallazgo, "Componente": componente, "Prioridad": prioridad,
+                    "Estado": estado, "Responsable del cierre": responsable, "Observación": obs
                 }])
-                
-                # 2. INTENTO DE GUARDADO (Con manejo de error de permisos)
                 try:
-                    # Unimos los datos viejos con el nuevo registro
-                    df_actualizado = pd.concat([df_total, datos_nuevos], ignore_index=True)
-                    
-                    # Intentamos la actualización
+                    df_actualizado = pd.concat([df_total, nueva_fila], ignore_index=True)
                     conn.update(data=df_actualizado)
-                    st.success("✅ ¡Registro guardado exitosamente en la nube!")
+                    st.success("¡Registro guardado exitosamente!")
                     st.balloons()
                 except Exception as e:
-                    st.error("⚠️ Error de Seguridad de Google")
-                    st.warning("Walter, la App procesó el dato, pero Google Sheets bloqueó la escritura por falta de una 'Service Account'.")
-                    st.info("Para solucionar esto, necesitamos el archivo JSON de credenciales de Google Cloud.")
-                    # Mostramos los datos para que no se pierdan (opcional)
-                    st.write("Datos que intentaste guardar:", datos_nuevos)
+                    st.error("Error de permisos en Google Sheets. Verifique sus Secrets.")
+
+    # --- PANTALLA 3: CARPETA PHVA ---
+    elif menu == "📂 Carpeta PHVA":
+        st.title("📂 Repositorio Documental")
+        st.link_button("Abrir Carpeta en Google Drive", "https://drive.google.com/drive/u/0/folders/17o_kAZMRcGhDeI3vAd0dEk_UQJGYQWBZ")
