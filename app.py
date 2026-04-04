@@ -41,12 +41,12 @@ else:
         st.title("🔵 Nuevo Reporte Técnico de Inspección")
     elif menu == "🔵 Reportar Inspección":
         st.title("🔵 Nuevo Reporte Técnico de Inspección")
-    with st.form("registro_detallado"):  # <--- AQUÍ EMPIEZA EL FORMULARIO
+        with st.form("registro_detallado"):  # <--- AQUÍ EMPIEZA EL FORMULARIO
             col1, col2 = st.columns(2)
-    with col1:
+            with col1:
                 # MIRA AQUÍ: Asegúrate de que el nombre sea 'empresa_entrada'
                 empresa_entrada = st.text_input("Nombre de la Empresa")
-    with col2:
+                with col2:
                 prioridad = st.selectbox("Prioridad", ["Baja", "Media", "Alta"])
                 responsable = st.text_input("Responsable del cierre")
                 fecha_prop = st.date_input("Fecha propuesta para el cierre")
