@@ -41,15 +41,14 @@ else:
     elif menu == "🔵 Reportar Inspección":
         st.title("🔵 Nuevo Reporte Técnico de Inspección")
         
-        with st.form("registro_detallado"):
+     elif menu == "🔵 Reportar Inspección":
+        st.title("🔵 Nuevo Reporte Técnico de Inspección")
+        
+        with st.form("registro_detallado"):  # <--- AQUÍ EMPIEZA EL FORMULARIO
             col1, col2 = st.columns(2)
             with col1:
-                empresa_nombre = st.text_input("Nombre de la Empresa")
-                fecha_insp = st.date_input("Fecha", datetime.now())
-                componente = st.text_input("Componente (Ej: Extintores, Alturas)")
-                hallazgo = st.text_area("Descripción del Hallazgo")
-                f_riesgo = st.text_input("Factor de riesgo asociado")
-                clasificacion = st.selectbox("Clasificación", ["Físico", "Químico", "Biológico", "Psicosocial", "Biomecánico", "Condiciones de Seguridad", "Fenómenos Naturales"])
+                # MIRA AQUÍ: Asegúrate de que el nombre sea 'empresa_entrada'
+                empresa_entrada = st.text_input("Nombre de la Empresa")
             
             with col2:
                 prioridad = st.selectbox("Prioridad", ["Baja", "Media", "Alta"])
