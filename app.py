@@ -17,7 +17,20 @@ else:
     menu = st.sidebar.radio("Menú", ["📊 Panel de Control", "🔵 Reportar Inspección", "📂 Carpeta PHVA"])
 
     # LEER DATOS REALES
+    # LEER DATOS REALES Y LIMPIAR TÍTULOS
     df_total = conn.read()
+    
+    # Esta línea borra espacios invisibles en los títulos
+    df_total.columns = df_total.columns.str.strip() 
+    
+    # Filtramos usando el nombre exacto que pusiste
+    # Si pusiste 'Nit' con N mayúscula, esto lo encontrará
+    try:
+        df_empresa = df_total[df_total['Nit'].astype(str) == str(nit_usuario)]
+    except KeyError:
+        st.error("⚠️ Error de Estructura: No encontré la columna 'Nit' en tu Excel.")
+        st.write("Columnas detectadas en tu archivo:", list(df_total.columns))
+        st.stop()
     df_empresa = df_total[df_total['Nit'].astype(str) == str(nit_usuario)]
 
     if menu == "📊 Panel de Control":
