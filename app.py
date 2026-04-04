@@ -71,9 +71,9 @@ else:
                 observacion = st.text_area("Observación adicional")
 
             btn = st.form_submit_button("✅ GUARDAR EN BASE DE DATOS")
-            
             if btn and hallazgo:
-                nueva_fila = pd.DataFrame([{
+                # 1. Organizamos los datos para el DataFrame
+                datos_nuevos = pd.DataFrame([{
                     "Nit": str(nit_usuario),
                     "Empresa": empresa_entrada,
                     "Fecha": str(fecha_insp),
@@ -87,11 +87,19 @@ else:
                     "Estado": estado,
                     "Observación": observacion
                 }])
-                df_actualizado = pd.concat([df_total, nueva_fila], ignore_index=True)
-                conn.update(data=df_actualizado)
-                st.success("✅ ¡Registro guardado exitosamente!")
-
-    elif menu == "📂 Carpeta PHVA":
-        st.title("📂 Documentación Estratégica")
-        url_drive = "https://drive.google.com/drive/u/0/folders/17o_kAZMRcGhDeI3vAd0dEk_UQJGYQWBZ"
-        st.link_button("Ir a mi Carpeta PHVA", url_drive)
+                
+                # 2. INTENTO DE GUARDADO (Con manejo de error de permisos)
+                try:
+                    # Unimos los datos viejos con el nuevo registro
+                    df_actualizado = pd.concat([df_total, datos_nuevos], ignore_index=True)
+                    
+                    # Intentamos la actualización
+                    conn.update(data=df_actualizado)
+                    st.success("✅ ¡Registro guardado exitosamente en la nube!")
+                    st.balloons()
+                except Exception as e:
+                    st.error("⚠️ Error de Seguridad de Google")
+                    st.warning("Walter, la App procesó el dato, pero Google Sheets bloqueó la escritura por falta de una 'Service Account'.")
+                    st.info("Para solucionar esto, necesitamos el archivo JSON de credenciales de Google Cloud.")
+                    # Mostramos los datos para que no se pierdan (opcional)
+                    st.write("Datos que intentaste guardar:", datos_nuevos)
