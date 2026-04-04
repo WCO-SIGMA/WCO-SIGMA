@@ -8,15 +8,15 @@ from datetime import datetime
 st.set_page_config(page_title="WCO-SIGMA SIG+PESV", layout="wide")
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# 2. ACCESO
+# 2. ACCESO (BARRA LATERAL)
 st.sidebar.image("https://cdn-icons-png.flaticon.com/512/1063/1063302.png", width=100)
 nit_input = st.sidebar.text_input("Ingrese NIT o Cédula:", "").strip()
 
 if not nit_input:
-    st.title("🚀 WCO-SIGMA: Sistema Integrado de Gestión")
-    st.info("Ingrese su identificación para acceder a los indicadores de HSEQ y Seguridad Vial.")
+    st.title("🚀 WCO-SIGMA: Gestión Integral")
+    st.info("Ingrese su identificación para acceder a los indicadores y reportes.")
 else:
-    menu = st.sidebar.radio("Gestión Integral", ["📊 Dashboard Gerencial", "🔵 Reportar Hallazgo SIG/PESV", "📂 Carpeta PHVA"])
+    menu = st.sidebar.radio("Menú Principal", ["📊 Dashboard Gerencial", "🔵 Reportar Hallazgo SIG/PESV", "📂 Carpeta PHVA"])
 
     # LECTURA DE DATOS
     df_total = conn.read()
@@ -26,7 +26,7 @@ else:
 
     # --- PANTALLA 1: DASHBOARD ---
     if menu == "📊 Dashboard Gerencial":
-        st.title(f"📊 Análisis de Gestión SIG & PESV - ID: {nit_input}")
+        st.title(f"📊 Informe Gerencial - ID: {nit_input}")
         
         if not df_empresa.empty:
             c1, c2, c3 = st.columns(3)
@@ -34,80 +34,84 @@ else:
             abiertos = len(df_empresa[df_empresa['Estado'].str.contains('Abierto', case=False, na=False)])
             c1.metric("Hallazgos Totales", total)
             c2.metric("Pendientes", abiertos, delta_color="inverse")
-            c3.metric("% Eficacia", f"{int(((total-abiertos)/total)*100)}%")
+            c3.metric("% Cumplimiento", f"{int(((total-abiertos)/total)*100)}%" if total > 0 else "0%")
 
             st.divider()
 
             g1, g2 = st.columns(2)
             with g1:
-                # Caracterización por Condición (PESV + HSEQ + AMBIENTE)
                 if 'Condición Crítica' in df_empresa.columns:
                     fig_cond = px.bar(df_empresa['Condición Crítica'].value_counts().reset_index(), 
                                     x='count', y='Condición Crítica', orientation='h',
-                                    title="🎯 Caracterización de Hallazgos (SIG)",
-                                    color='count', color_continuous_scale='Reds')
+                                    title="🎯 Hallazgos por Condición", color='count')
                     st.plotly_chart(fig_cond, use_container_width=True)
             with g2:
-                fig_prio = px.pie(df_empresa, names='Prioridad', title="⚖️ Nivel de Riesgo", hole=0.4)
-                st.plotly_chart(fig_prio, use_container_width=True)
+                if 'Componente' in df_empresa.columns:
+                    fig_comp = px.pie(df_empresa, names='Componente', title="📂 Distribución por Sistema (SIG)", hole=0.4)
+                    st.plotly_chart(fig_comp, use_container_width=True)
 
-            # ESPACIO DE ANÁLISIS PARA AUDITORÍA RUC / PESV
-            st.subheader("📝 Conclusiones de Auditoría y Plan de Acción")
-            analisis = st.text_area("Determine aquí la causa raíz y las medidas de control sugeridas:", 
-                                   placeholder="Ej: Se detecta recurrencia en fallas de seguridad vial interna. Se requiere re-inducción en el PESV...")
+            st.subheader("📝 Análisis de Resultados y Plan de Acción")
+            analisis = st.text_area("Causa Raíz / Compromisos Gerenciales:", placeholder="Escriba aquí el análisis para el informe...")
 
-            st.write("### 📑 Trazabilidad de Registros")
+            st.write("### 📑 Trazabilidad Completa de Registros")
             st.dataframe(df_empresa, use_container_width=True)
         else:
-            st.warning("No hay registros vinculados a este NIT.")
+            st.warning("No hay registros vinculados.")
 
-    # --- PANTALLA 2: REPORTE INTEGRADO ---
+    # --- PANTALLA 2: REPORTE (ORDEN DE COLUMNAS EXCEL) ---
     elif menu == "🔵 Reportar Hallazgo SIG/PESV":
-        st.title("🔵 Registro Multidimensional SIG + PESV")
+        st.title("🔵 Registro Técnico SIG")
         with st.form("form_sig"):
             col1, col2 = st.columns(2)
             with col1:
-                empresa = st.text_input("Empresa")
-                fecha = st.date_input("Fecha", datetime.now())
+                f_empresa = st.text_input("Empresa")
+                f_fecha = st.date_input("Fecha", datetime.now())
+                f_hallazgo = st.text_area("Hallazgo Detallado")
                 
-                # LISTA INTEGRADA: HSEQ + AMBIENTE + PESV
-                condicion = st.selectbox("Condición Detectada", [
-                    "-- SEGURIDAD Y SALUD (RUC) --",
+                f_condicion = st.selectbox("Condición Crítica", [
                     "Orden y aseo", "Herramientas, máquinas y/o equipos en mal estado",
-                    "Daño/Ausencia de guardas o bloqueos", "Daño locativo",
-                    "EPP mal estado o inapropiado", "Sistemas eléctricos",
-                    "Alturas y Espacios Confinados", "Factores Ergonómicos",
-                    "-- MEDIO AMBIENTE (ISO 14001) --",
-                    "Disposición inadecuada de residuos", "Fugas o goteos de sustancias",
-                    "Derrames de hidrocarburos/químicos", "Consumo excesivo de recursos",
-                    "Ausencia de kits de derrames",
-                    "-- SEGURIDAD VIAL (PESV) --",
-                    "Exceso de velocidad en vías internas", "Vehículos sin inspección pre-operacional",
-                    "Señalización vial interna deficiente", "Uso inadecuado de parqueaderos",
-                    "Fallas mecánicas en flota", "No uso de cinturón/casco en planta"
+                    "Daño/Ausencia de guardas o bloqueos", "Daño locativo", "Superficies resbalosas",
+                    "EPP mal estado o inapropiado", "Almacenamiento inadecuado", "Riesgo Químico",
+                    "Emergencias y Contra Incendios", "Sistemas eléctricos", "Alturas y Espacios Confinados",
+                    "Señalización y demarcación", "Factores Ergonómicos", "Disposición de residuos",
+                    "Fugas o derrames", "Exceso de velocidad (PESV)", "Fallas mecánicas (PESV)", "Otros"
                 ])
                 
-                hallazgo = st.text_area("Descripción del Evento")
+                f_riesgo = st.text_input("Clasificación del riesgo") # Ejemplo: Físico, Químico...
                 
             with col2:
-                prioridad = st.selectbox("Prioridad/Gravedad", ["Baja", "Media", "Alta"])
-                estado = st.selectbox("Estado de Gestión", ["Abierto", "En Proceso", "Cerrado"])
-                responsable = st.text_input("Responsable Asignado")
-                obs = st.text_area("Plan de Acción Inmediato")
+                # LISTA DESPLEGABLE DE COMPONENTE SOLICITADA
+                f_componente = st.selectbox("Componente", ["SST", "Ambiente", "Vial", "Calidad"])
+                
+                f_responsable = st.text_input("Responsable del cierre")
+                f_fecha_p = st.date_input("Fecha propuesta para el cierre", datetime.now())
+                f_prioridad = st.selectbox("Prioridad", ["Baja", "Media", "Alta"])
+                f_estado = st.selectbox("Estado", ["Abierto", "En Proceso", "Cerrado"])
+                f_obs = st.text_area("Observación")
             
-            if st.form_submit_button("✅ GUARDAR EN EL SIG"):
+            if st.form_submit_button("✅ GUARDAR REGISTRO"):
+                # MAPEO EXACTO A LAS COLUMNAS DE TU EXCEL
                 nueva_fila = pd.DataFrame([{
-                    "Nit": str(nit_input), "Empresa": empresa, "Fecha": str(fecha),
-                    "Condición Crítica": condicion, "Hallazgo": hallazgo,
-                    "Prioridad": prioridad, "Estado": estado, "Responsable": responsable, "Observación": obs
+                    "Nit": str(nit_input),
+                    "Empresa": f_empresa,
+                    "Fecha": str(f_fecha),
+                    "Hallazgo": f_hallazgo,
+                    "Condición Crítica": f_condicion,
+                    "Clasificación del riesgo": f_riesgo,
+                    "Componente": f_componente,
+                    "Responsable del cierre": f_responsable,
+                    "Fecha propuesta para el cierre": str(f_fecha_p),
+                    "Prioridad": f_prioridad,
+                    "Estado": f_estado,
+                    "Observación": f_obs
                 }])
                 try:
-                    df_total = pd.concat([df_total, nueva_fila], ignore_index=True)
-                    conn.update(data=df_total)
-                    st.success("¡Hallazgo integrado al Sistema de Gestión!")
+                    df_actualizado = pd.concat([df_total, nueva_fila], ignore_index=True)
+                    conn.update(data=df_actualizado)
+                    st.success("¡Registro guardado con éxito!")
                     st.balloons()
-                except:
-                    st.error("Error al sincronizar con la nube.")
+                except Exception as e:
+                    st.error(f"Error al guardar: {e}")
 
     elif menu == "📂 Carpeta PHVA":
-        st.link_button("📁 Ver Documentación PHVA (Drive)", "https://drive.google.com/drive/u/0/folders/17o_kAZMRcGhDeI3vAd0dEk_UQJGYQWBZ")
+        st.link_button("📁 Abrir Google Drive", "https://drive.google.com/drive/u/0/folders/17o_kAZMRcGhDeI3vAd0dEk_UQJGYQWBZ")
