@@ -37,29 +37,23 @@ else:
         st.title(f"📊 Gestión de Hallazgos - NIT {nit_usuario}")
         st.metric("Total Registros", len(df_empresa))
         st.dataframe(df_empresa, use_container_width=True)
-
     elif menu == "🔵 Reportar Inspección":
         st.title("🔵 Nuevo Reporte Técnico de Inspección")
-        
-     elif menu == "🔵 Reportar Inspección":
+    elif menu == "🔵 Reportar Inspección":
         st.title("🔵 Nuevo Reporte Técnico de Inspección")
-        
-        with st.form("registro_detallado"):  # <--- AQUÍ EMPIEZA EL FORMULARIO
+    with st.form("registro_detallado"):  # <--- AQUÍ EMPIEZA EL FORMULARIO
             col1, col2 = st.columns(2)
-            with col1:
+    with col1:
                 # MIRA AQUÍ: Asegúrate de que el nombre sea 'empresa_entrada'
                 empresa_entrada = st.text_input("Nombre de la Empresa")
-            
-            with col2:
+    with col2:
                 prioridad = st.selectbox("Prioridad", ["Baja", "Media", "Alta"])
                 responsable = st.text_input("Responsable del cierre")
                 fecha_prop = st.date_input("Fecha propuesta para el cierre")
                 estado = st.selectbox("Estado", ["Abierto", "En Proceso", "Cerrado"])
                 observacion = st.text_area("Observación adicional")
-
             btn = st.form_submit_button("✅ GUARDAR EN BASE DE DATOS")
-            
-            if btn and hallazgo:
+    if btn and hallazgo:
                 # Crear la nueva fila con tu estructura exacta
                 nueva_fila = pd.DataFrame([{
                     "Nit": str(nit_usuario),
