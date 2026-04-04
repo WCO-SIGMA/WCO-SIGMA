@@ -44,7 +44,7 @@ else:
     df_empresa = df_total[df_total['Nit'].astype(str) == str(nit_usuario)]
 
     # --- LÓGICA DE PANTALLAS ---
-   if menu == "📊 Panel de Control":
+    if menu == "📊 Panel de Control":
         st.title(f"📊 Dashboard Ejecutivo - NIT: {nit_usuario}")
         
         if not df_empresa.empty:
