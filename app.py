@@ -44,13 +44,45 @@ else:
     df_empresa = df_total[df_total['Nit'].astype(str) == str(nit_usuario)]
 
     # --- LÓGICA DE PANTALLAS ---
-    if menu == "📊 Panel de Control":
-        st.title(f"📊 Panel de Gestión - NIT: {nit_usuario}")
-        c1, c2 = st.columns(2)
-        c1.metric("Inspecciones Realizadas", len(df_empresa))
-        c2.metric("Estado del SIG", "En Ejecución")
-        st.write("### Historial de Hallazgos")
-        st.dataframe(df_empresa, use_container_width=True)
+   if menu == "📊 Panel de Control":
+        st.title(f"📊 Dashboard Ejecutivo - NIT: {nit_usuario}")
+        
+        if not df_empresa.empty:
+            # 1. MÉTRICAS RÁPIDAS
+            c1, c2, c3 = st.columns(3)
+            total_h = len(df_empresa)
+            abiertos = len(df_empresa[df_empresa['Estado'] == 'Abierto'])
+            
+            c1.metric("Total Hallazgos", total_h)
+            c2.metric("Pendientes (Abiertos)", abiertos, delta_color="inverse")
+            c3.metric("Cumplimiento", f"{int(((total_h-abiertos)/total_h)*100)}%" if total_h > 0 else "0%")
+
+            st.divider()
+
+            # 2. CARACTERIZACIÓN GRÁFICA
+            col_graf1, col_graf2 = st.columns(2)
+
+            with col_graf1:
+                st.write("### ⚖️ Prioridad de Riesgos")
+                # Creamos el gráfico de torta
+                fig_prioridad = px.pie(df_empresa, names='Prioridad', 
+                                     color='Prioridad',
+                                     color_discrete_map={'Alta':'#EF553B', 'Media':'#FECB52', 'Baja':'#636EFA'},
+                                     hole=0.4)
+                st.plotly_chart(fig_prioridad, use_container_width=True)
+
+            with col_graf2:
+                st.write("### 📈 Estado de Gestión")
+                # Creamos el gráfico de barras
+                fig_estado = px.bar(df_empresa, x='Estado', color='Estado',
+                                   title="Distribución por Estado")
+                st.plotly_chart(fig_estado, use_container_width=True)
+
+            st.write("### 📑 Detalle de Inspecciones")
+            st.dataframe(df_empresa, use_container_width=True)
+            
+        else:
+            st.info("Aún no hay datos registrados para este NIT. Comienza en el menú 'Reportar Inspección'.")
 
     elif menu == "🔵 Reportar Inspección":
         st.title("🔵 Nuevo Reporte Técnico de Inspección")
