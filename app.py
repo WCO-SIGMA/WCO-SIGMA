@@ -7,7 +7,7 @@ from datetime import datetime
 # 1. CONFIGURACIÓN DE PÁGINA
 st.set_page_config(page_title="WCO-SIGMA SIG+PESV", layout="wide")
 
-# 2. CONEXIÓN Y LIMPIEZA DE CACHÉ FORZADA
+# 2. CONEXIÓN (Sin memoria caché para leer datos frescos)
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 # 3. ACCESO (BARRA LATERAL)
@@ -20,22 +20,21 @@ if not nit_input:
 else:
     menu = st.sidebar.radio("Menú Principal", ["📊 Dashboard Gerencial", "🔵 Reportar Hallazgo SIG/PESV", "📂 Carpeta PHVA"])
 
-    # LECTURA DE DATOS (ttl=0 para evitar que muestre datos viejos)
+    # LECTURA DE DATOS EN VIVO
     df_total = conn.read(ttl=0) 
     df_total.columns = df_total.columns.str.strip()
     
-    # Aseguramos que el NIT sea comparado como texto limpio
+    # Limpieza de NIT para comparación
     df_total['Nit'] = df_total['Nit'].astype(str).str.replace('.0', '', regex=False).str.strip()
     df_empresa = df_total[df_total['Nit'] == nit_input]
 
-    # --- PANTALLA 1: DASHBOARD (PANEL DE CONTROL) ---
+    # --- PANTALLA 1: DASHBOARD ---
     if menu == "📊 Dashboard Gerencial":
         st.title(f"📊 Informe Gerencial SIG - ID: {nit_input}")
         
         if not df_empresa.empty:
             c1, c2, c3 = st.columns(3)
             total = len(df_empresa)
-            # Contamos abiertos ignorando mayúsculas/minúsculas
             abiertos = len(df_empresa[df_empresa['Estado'].astype(str).str.contains('Abierto', case=False, na=False)])
             
             c1.metric("Hallazgos Totales", total)
@@ -43,7 +42,6 @@ else:
             c3.metric("% Eficacia", f"{int(((total-abiertos)/total)*100)}%" if total > 0 else "0%")
 
             st.divider()
-
             g1, g2 = st.columns(2)
             with g1:
                 if 'Condición Crítica' in df_empresa.columns:
@@ -52,19 +50,19 @@ else:
                                     title="🎯 Hallazgos por Condición", color='count')
                     st.plotly_chart(fig_cond, use_container_width=True)
             with g2:
-                if 'Componente' in df_empresa.columns:
-                    fig_comp = px.pie(df_empresa, names='Componente', title="📂 Distribución SIG", hole=0.4)
-                    st.plotly_chart(fig_comp, use_container_width=True)
+                if 'Clasificación del riesgo' in df_empresa.columns:
+                    fig_riesgo = px.pie(df_empresa, names='Clasificación del riesgo', title="☣️ Riesgos GTC 45", hole=0.4)
+                    st.plotly_chart(fig_riesgo, use_container_width=True)
 
             st.subheader("📝 Análisis de Resultados")
             st.text_area("Causa Raíz y Plan de Acción:", placeholder="Escriba aquí el análisis del auditor...")
 
-            st.write("### 📑 Tabla Actualizada de Registros")
+            st.write("### 📑 Tabla de Inspecciones (Orden Actualizado)")
             st.dataframe(df_empresa, use_container_width=True)
         else:
-            st.warning("No se encontraron registros actualizados para este ID.")
+            st.warning("No se encontraron registros.")
 
-    # --- PANTALLA 2: REPORTE (ORDEN QUIRÚRGICO DE COLUMNAS) ---
+    # --- PANTALLA 2: REPORTE (ORDEN EXACTO SOLICITADO) ---
     elif menu == "🔵 Reportar Hallazgo SIG/PESV":
         st.title("🔵 Registro Técnico SIG")
         with st.form("form_sig"):
@@ -73,13 +71,26 @@ else:
                 f_empresa = st.text_input("Empresa")
                 f_fecha = st.date_input("Fecha", datetime.now())
                 f_hallazgo = st.text_area("Hallazgo Detallado")
+                
+                # LISTA COMPLETA DE CONDICIONES CRÍTICAS
                 f_condicion = st.selectbox("Condición Crítica", [
-                    "Orden y aseo", "Herramientas/Equipos en mal estado", "Daño locativo", 
-                    "Sistemas eléctricos", "Alturas/Confinados", "Ambiental (Residuos/Fugas)", 
-                    "Vial (PESV)", "Otros"])
+                    "Orden y aseo", "Herramientas, máquinas y/o equipos en mal estado",
+                    "Daño/Ausencia de guardas o bloqueos", "Daño locativo (pisos, paredes, techos)",
+                    "Superficies resbalosas", "EPP mal estado o inapropiado",
+                    "Almacenamiento inadecuado", "Riesgo Químico (Sustancias/Rotulado)",
+                    "Emergencias y Contra Incendios", "Sistemas eléctricos",
+                    "Alturas y Espacios Confinados", "Señalización y demarcación deficiente",
+                    "Factores Ergonómicos y Ambientales", "Disposición de residuos",
+                    "Fugas o derrames", "Seguridad Vial (Vías internas/PESV)"
+                ])
+                
+                # NUEVA LISTA DESPLEGABLE GTC 45
+                f_riesgo = st.selectbox("Clasificación del riesgo (GTC 45)", [
+                    "Biológico", "Físico", "Químico", "Psicosocial", 
+                    "Biomecánico", "Condiciones de Seguridad", "Fenómenos Naturales"
+                ])
                 
             with col2:
-                f_riesgo = st.text_input("Clasificación del riesgo")
                 f_componente = st.selectbox("Componente", ["SST", "Ambiente", "Vial", "Calidad"])
                 f_responsable = st.text_input("Responsable del cierre")
                 f_fecha_p = st.date_input("Fecha propuesta para el cierre", datetime.now())
@@ -88,7 +99,7 @@ else:
                 f_obs = st.text_area("Observación")
             
             if st.form_submit_button("✅ GUARDAR Y SINCRONIZAR"):
-                # ESTE MAPEO DEBE SER IDÉNTICO AL ORDEN DE TU EXCEL
+                # ORDEN ESTRICTO DE COLUMNAS SEGÚN TU SOLICITUD
                 nueva_fila = pd.DataFrame([{
                     "Nit": str(nit_input),
                     "Empresa": f_empresa,
@@ -105,18 +116,20 @@ else:
                 }])
                 
                 try:
-                    # Forzamos que las columnas sigan el orden del Excel antes de subir
-                    columnas_excel = ["Nit", "Empresa", "Fecha", "Hallazgo", "Condición Crítica", 
-                                     "Clasificación del riesgo", "Componente", "Responsable del cierre", 
-                                     "Fecha propuesta para el cierre", "Prioridad", "Estado", "Observación"]
-                    nueva_fila = nueva_fila[columnas_excel]
+                    # Forzamos el orden de las columnas antes de concatenar
+                    columnas_ordenadas = [
+                        "Nit", "Empresa", "Fecha", "Hallazgo", "Condición Crítica", 
+                        "Clasificación del riesgo", "Componente", "Responsable del cierre", 
+                        "Fecha propuesta para el cierre", "Prioridad", "Estado", "Observación"
+                    ]
+                    nueva_fila = nueva_fila[columnas_ordenadas]
                     
                     df_actualizado = pd.concat([df_total, nueva_fila], ignore_index=True)
                     conn.update(data=df_actualizado)
-                    st.success("¡Sincronización exitosa! Refresque el Dashboard.")
+                    st.success("¡Registro guardado en el orden correcto!")
                     st.balloons()
                 except Exception as e:
-                    st.error(f"Error de mapeo: {e}")
+                    st.error(f"Error de sincronización: {e}")
 
     elif menu == "📂 Carpeta PHVA":
         st.link_button("📁 Abrir Drive", "https://drive.google.com/drive/u/0/folders/17o_kAZMRcGhDeI3vAd0dEk_UQJGYQWBZ")
