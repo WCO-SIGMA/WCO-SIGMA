@@ -26,8 +26,11 @@ else:
     df_empresa = df_total[df_total['Nit'].astype(str).str.strip() == str(nit_usuario).strip()]
 
     # --- PANTALLA 1: PANEL DE CONTROL ---
-    if menu == "📊 Panel de Control":
-        st.title(f"📊 Dashboard - NIT: {nit_usuario}")
+    # ... (aquí están los gráficos que ya ves)
+            st.plotly_chart(fig_est, use_container_width=True)
+
+            st.write("### 📑 Historial Completo")
+            st.dataframe(df_empresa, use_container_width=True) # <--- ESTA ES LA LÍNEA
         
         if not df_empresa.empty:
             c1, c2, c3 = st.columns(3)
