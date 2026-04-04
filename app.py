@@ -47,6 +47,39 @@ else:
     if menu == "📊 Panel de Control":
         st.title(f"📊 Dashboard Ejecutivo - NIT: {nit_usuario}")
         
+        # MENSAJE ESPÍA 1: Para saber si entró al menú
+        st.write(f"DEBUG: Entraste al menú. Tienes {len(df_empresa)} registros.")
+
+        if len(df_empresa) > 0:
+            # MÉTRICAS
+            c1, c2, c3 = st.columns(3)
+            total_h = len(df_empresa)
+            abiertos = len(df_empresa[df_empresa['Estado'] == 'Abierto'])
+            
+            c1.metric("Total Hallazgos", total_h)
+            c2.metric("Pendientes", abiertos)
+            cumplimiento = int(((total_h-abiertos)/total_h)*100) if total_h > 0 else 0
+            c3.metric("Cumplimiento", f"{cumplimiento}%")
+
+            st.divider()
+
+            # GRÁFICOS
+            col_graf1, col_graf2 = st.columns(2)
+            with col_graf1:
+                # Usamos un gráfico simple primero para probar
+                fig1 = px.pie(df_empresa, names='Prioridad', title="Prioridad")
+                st.plotly_chart(fig1, use_container_width=True)
+            with col_graf2:
+                fig2 = px.bar(df_empresa, x='Estado', title="Estados")
+                st.plotly_chart(fig2, use_container_width=True)
+
+            st.write("### 📑 Detalle de Inspecciones")
+            st.dataframe(df_empresa, use_container_width=True)
+        else:
+            # MENSAJE ESPÍA 2: Por si la tabla está vacía para Python
+            st.warning("Atención: Python dice que no hay datos para graficar.")
+            st.dataframe(df_empresa) # Mostramos lo que sea que tenga
+        
         if not df_empresa.empty:
             # 1. MÉTRICAS RÁPIDAS
             c1, c2, c3 = st.columns(3)
