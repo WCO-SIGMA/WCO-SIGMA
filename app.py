@@ -32,14 +32,27 @@ else:
         st.write("Columnas detectadas en tu archivo:", list(df_total.columns))
         st.stop()
     df_empresa = df_total[df_total['Nit'].astype(str) == str(nit_usuario)]
+# --- SISTEMA DE NAVEGACIÓN ---
+    menu = st.sidebar.radio("Gestión HSEQ", ["📊 Panel de Control", "🔵 Reportar Inspección", "📂 Carpeta PHVA"])
 
+    # LEER DATOS REALES Y LIMPIAR TÍTULOS
+    df_total = conn.read()
+    df_total.columns = df_total.columns.str.strip()
+
+    # FILTRAR POR NIT
+    df_empresa = df_total[df_total['Nit'].astype(str) == str(nit_usuario)]
+
+    # --- LÓGICA DE PANTALLAS ---
     if menu == "📊 Panel de Control":
-        st.title(f"📊 Gestión de Hallazgos - NIT {nit_usuario}")
-        st.metric("Total Registros", len(df_empresa))
+        st.title(f"📊 Panel de Gestión - NIT: {nit_usuario}")
+        c1, c2 = st.columns(2)
+        c1.metric("Inspecciones Realizadas", len(df_empresa))
+        c2.metric("Estado del SIG", "En Ejecución")
+        st.write("### Historial de Hallazgos")
         st.dataframe(df_empresa, use_container_width=True)
-        elif menu == "🔵 Reportar Inspección":
+
+    elif menu == "🔵 Reportar Inspección":
         st.title("🔵 Nuevo Reporte Técnico de Inspección")
-        
         with st.form("registro_detallado"):
             col1, col2 = st.columns(2)
             with col1:
@@ -57,11 +70,9 @@ else:
                 estado = st.selectbox("Estado", ["Abierto", "En Proceso", "Cerrado"])
                 observacion = st.text_area("Observación adicional")
 
-            # El botón debe estar alineado con 'col1, col2' (un nivel adentro del form)
             btn = st.form_submit_button("✅ GUARDAR EN BASE DE DATOS")
             
             if btn and hallazgo:
-                # Todo este bloque debe estar un nivel adentro del 'if btn'
                 nueva_fila = pd.DataFrame([{
                     "Nit": str(nit_usuario),
                     "Empresa": empresa_entrada,
@@ -76,8 +87,11 @@ else:
                     "Estado": estado,
                     "Observación": observacion
                 }])
-                
-                # Sincronización con Google Sheets
                 df_actualizado = pd.concat([df_total, nueva_fila], ignore_index=True)
                 conn.update(data=df_actualizado)
-                st.success("✅ ¡Registro guardado exitosamente en la BD Maestra!")
+                st.success("✅ ¡Registro guardado exitosamente!")
+
+    elif menu == "📂 Carpeta PHVA":
+        st.title("📂 Documentación Estratégica")
+        url_drive = "https://drive.google.com/drive/u/0/folders/17o_kAZMRcGhDeI3vAd0dEk_UQJGYQWBZ"
+        st.link_button("Ir a mi Carpeta PHVA", url_drive)
