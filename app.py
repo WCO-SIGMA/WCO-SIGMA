@@ -5,104 +5,109 @@ import plotly.express as px
 from datetime import datetime
 
 # 1. CONFIGURACIÓN
-st.set_page_config(page_title="WCO-SIGMA HSEQ", layout="wide")
+st.set_page_config(page_title="WCO-SIGMA SIG+PESV", layout="wide")
 conn = st.connection("gsheets", type=GSheetsConnection)
 
-# 2. ACCESO (BARRA LATERAL)
+# 2. ACCESO
 st.sidebar.image("https://cdn-icons-png.flaticon.com/512/1063/1063302.png", width=100)
-nit_input = st.sidebar.text_input("Ingrese NIT o Cédula (sin puntos):", "").strip()
+nit_input = st.sidebar.text_input("Ingrese NIT o Cédula:", "").strip()
 
 if not nit_input:
-    st.title("🚀 Sistema de Gestión WCO-SIGMA")
-    st.info("Ingrese su identificación en la barra lateral para comenzar.")
+    st.title("🚀 WCO-SIGMA: Sistema Integrado de Gestión")
+    st.info("Ingrese su identificación para acceder a los indicadores de HSEQ y Seguridad Vial.")
 else:
-    # MENÚ
-    menu = st.sidebar.radio("Gestión HSEQ", ["📊 Panel de Control", "🔵 Reportar Inspección", "📂 Carpeta PHVA"])
+    menu = st.sidebar.radio("Gestión Integral", ["📊 Dashboard Gerencial", "🔵 Reportar Hallazgo SIG/PESV", "📂 Carpeta PHVA"])
 
-    # LECTURA Y LIMPIEZA TOTAL
+    # LECTURA DE DATOS
     df_total = conn.read()
     df_total.columns = df_total.columns.str.strip()
-    
-    # Convertimos la columna 'Nit' del Excel a texto limpio para comparar
     df_total['Nit'] = df_total['Nit'].astype(str).str.replace('.0', '', regex=False).str.strip()
     df_empresa = df_total[df_total['Nit'] == nit_input]
 
-    # --- PANTALLA 1: PANEL DE CONTROL ---
-    if menu == "📊 Panel de Control":
-        st.title(f"📊 Dashboard - ID: {nit_input}")
+    # --- PANTALLA 1: DASHBOARD ---
+    if menu == "📊 Dashboard Gerencial":
+        st.title(f"📊 Análisis de Gestión SIG & PESV - ID: {nit_input}")
         
         if not df_empresa.empty:
             c1, c2, c3 = st.columns(3)
             total = len(df_empresa)
             abiertos = len(df_empresa[df_empresa['Estado'].str.contains('Abierto', case=False, na=False)])
-            
-            c1.metric("Inspecciones", total)
+            c1.metric("Hallazgos Totales", total)
             c2.metric("Pendientes", abiertos, delta_color="inverse")
-            c3.metric("Cumplimiento", f"{int(((total-abiertos)/total)*100)}%" if total > 0 else "0%")
+            c3.metric("% Eficacia", f"{int(((total-abiertos)/total)*100)}%")
 
             st.divider()
+
             g1, g2 = st.columns(2)
             with g1:
-                fig_prio = px.pie(df_empresa, names='Prioridad', title="🔴 Prioridad", hole=0.4)
-                st.plotly_chart(fig_prio, use_container_width=True)
+                # Caracterización por Condición (PESV + HSEQ + AMBIENTE)
+                if 'Condición Crítica' in df_empresa.columns:
+                    fig_cond = px.bar(df_empresa['Condición Crítica'].value_counts().reset_index(), 
+                                    x='count', y='Condición Crítica', orientation='h',
+                                    title="🎯 Caracterización de Hallazgos (SIG)",
+                                    color='count', color_continuous_scale='Reds')
+                    st.plotly_chart(fig_cond, use_container_width=True)
             with g2:
-                fig_est = px.bar(df_empresa, x='Estado', color='Estado', title="🟢 Estados")
-                st.plotly_chart(fig_est, use_container_width=True)
+                fig_prio = px.pie(df_empresa, names='Prioridad', title="⚖️ Nivel de Riesgo", hole=0.4)
+                st.plotly_chart(fig_prio, use_container_width=True)
 
-            st.write("### 📑 Historial de Reportes")
+            # ESPACIO DE ANÁLISIS PARA AUDITORÍA RUC / PESV
+            st.subheader("📝 Conclusiones de Auditoría y Plan de Acción")
+            analisis = st.text_area("Determine aquí la causa raíz y las medidas de control sugeridas:", 
+                                   placeholder="Ej: Se detecta recurrencia en fallas de seguridad vial interna. Se requiere re-inducción en el PESV...")
+
+            st.write("### 📑 Trazabilidad de Registros")
             st.dataframe(df_empresa, use_container_width=True)
         else:
-            st.warning(f"No se encontraron datos para {nit_input}.")
-            # Ayuda visual para el auditor (Walter)
-            st.write("IDs encontrados en Excel para verificar:", df_total['Nit'].unique()[:5])
+            st.warning("No hay registros vinculados a este NIT.")
 
-    # --- PANTALLA 2: REPORTAR INSPECCIÓN (CON LISTAS DESPLEGABLES) ---
-    elif menu == "🔵 Reportar Inspección":
-        st.title("🔵 Nuevo Reporte de Inspección")
-        with st.form("form_bdi"):
+    # --- PANTALLA 2: REPORTE INTEGRADO ---
+    elif menu == "🔵 Reportar Hallazgo SIG/PESV":
+        st.title("🔵 Registro Multidimensional SIG + PESV")
+        with st.form("form_sig"):
             col1, col2 = st.columns(2)
             with col1:
-                empresa = st.text_input("Nombre de la Empresa")
+                empresa = st.text_input("Empresa")
                 fecha = st.date_input("Fecha", datetime.now())
-                componente = st.text_input("Componente (Área/Proceso)")
                 
-                # LISTA DESPLEGABLE: FACTOR DE RIESGO
-                f_riesgo = st.selectbox("Factor de Riesgo", [
-                    "Físico", "Químico", "Biológico", "Biomecánico", 
-                    "Psicosocial", "Condiciones de Seguridad", "Fenómenos Naturales"
+                # LISTA INTEGRADA: HSEQ + AMBIENTE + PESV
+                condicion = st.selectbox("Condición Detectada", [
+                    "-- SEGURIDAD Y SALUD (RUC) --",
+                    "Orden y aseo", "Herramientas, máquinas y/o equipos en mal estado",
+                    "Daño/Ausencia de guardas o bloqueos", "Daño locativo",
+                    "EPP mal estado o inapropiado", "Sistemas eléctricos",
+                    "Alturas y Espacios Confinados", "Factores Ergonómicos",
+                    "-- MEDIO AMBIENTE (ISO 14001) --",
+                    "Disposición inadecuada de residuos", "Fugas o goteos de sustancias",
+                    "Derrames de hidrocarburos/químicos", "Consumo excesivo de recursos",
+                    "Ausencia de kits de derrames",
+                    "-- SEGURIDAD VIAL (PESV) --",
+                    "Exceso de velocidad en vías internas", "Vehículos sin inspección pre-operacional",
+                    "Señalización vial interna deficiente", "Uso inadecuado de parqueaderos",
+                    "Fallas mecánicas en flota", "No uso de cinturón/casco en planta"
                 ])
                 
-                # LISTA DESPLEGABLE: CLASIFICACIÓN
-                clasificacion = st.selectbox("Clasificación", [
-                    "Ruido", "Iluminación", "Vibración", "Temperaturas", "Radiaciones",
-                    "Polvos", "Líquidos", "Gases", "Virus/Bacterias", "Postura", 
-                    "Esfuerzo", "Manipulación de cargas", "Mecánico", "Eléctrico",
-                    "Locativo", "Tecnológico", "Accidentes de tránsito", "Público"
-                ])
+                hallazgo = st.text_area("Descripción del Evento")
                 
             with col2:
-                hallazgo = st.text_area("Hallazgo Detectado")
-                prioridad = st.selectbox("Prioridad", ["Baja", "Media", "Alta"])
-                responsable = st.text_input("Responsable del cierre")
-                fecha_prop = st.date_input("Fecha propuesta cierre", datetime.now())
-                estado = st.selectbox("Estado", ["Abierto", "En Proceso", "Cerrado"])
-                obs = st.text_area("Observaciones")
+                prioridad = st.selectbox("Prioridad/Gravedad", ["Baja", "Media", "Alta"])
+                estado = st.selectbox("Estado de Gestión", ["Abierto", "En Proceso", "Cerrado"])
+                responsable = st.text_input("Responsable Asignado")
+                obs = st.text_area("Plan de Acción Inmediato")
             
-            if st.form_submit_button("✅ GUARDAR"):
+            if st.form_submit_button("✅ GUARDAR EN EL SIG"):
                 nueva_fila = pd.DataFrame([{
                     "Nit": str(nit_input), "Empresa": empresa, "Fecha": str(fecha),
-                    "Hallazgo": hallazgo, "Componente": componente, 
-                    "Factor de riesgo asociado": f_riesgo, "Clasificación": clasificacion,
-                    "Responsable del cierre": responsable, "Fecha propuesta para el cierre": str(fecha_prop),
-                    "Prioridad": prioridad, "Estado": estado, "Observación": obs
+                    "Condición Crítica": condicion, "Hallazgo": hallazgo,
+                    "Prioridad": prioridad, "Estado": estado, "Responsable": responsable, "Observación": obs
                 }])
                 try:
                     df_total = pd.concat([df_total, nueva_fila], ignore_index=True)
                     conn.update(data=df_total)
-                    st.success("¡Registro guardado!")
+                    st.success("¡Hallazgo integrado al Sistema de Gestión!")
                     st.balloons()
-                except Exception as e:
-                    st.error(f"Error al guardar: {e}")
+                except:
+                    st.error("Error al sincronizar con la nube.")
 
     elif menu == "📂 Carpeta PHVA":
-        st.link_button("📁 Abrir Drive", "https://drive.google.com/drive/u/0/folders/17o_kAZMRcGhDeI3vAd0dEk_UQJGYQWBZ")
+        st.link_button("📁 Ver Documentación PHVA (Drive)", "https://drive.google.com/drive/u/0/folders/17o_kAZMRcGhDeI3vAd0dEk_UQJGYQWBZ")
