@@ -1,121 +1,80 @@
-import streamlit as st
-from streamlit_gsheets import GSheetsConnection
-import pandas as pd
-import plotly.express as px
-from datetime import datetime
-import uuid
-
-# 1. CONFIGURACIÓN
-st.set_page_config(page_title="WCO-SIGMA SIG+PESV", layout="wide")
-
-# --- CONEXIÓN A BASES DE DATOS ---
-URL_COND = "https://docs.google.com/spreadsheets/d/18OIJe409rr6o_o4HSweiuncIoOrgJOXEt0GFCmEsL4g/edit"
-URL_COMP = "https://docs.google.com/spreadsheets/d/1szrDZsA59e5sMF6OAzPeQ_nDX7E9lMehaXCPHmVNx5o/edit"
-
-conn = st.connection("gsheets", type=GSheetsConnection)
-
-# 2. ACCESO
-st.sidebar.image("https://cdn-icons-png.flaticon.com/512/1063/1063302.png", width=100)
-nit_input = st.sidebar.text_input("Identificación Empresa (NIT):", "").strip()
-
-if not nit_input:
-    st.title("🚀 WCO-SIGMA: Sistema de Gestión PHVA")
-    st.info("Ingrese el NIT para activar el análisis de datos y seguimiento de medidas.")
-else:
-    # --- CARGA DE DATOS ---
-    try:
-        df_cond = conn.read(spreadsheet=URL_COND, ttl=0)
-        df_cond.columns = df_cond.columns.str.strip()
-        df_cond['Nit'] = df_cond['Nit'].astype(str).str.replace('.0', '', regex=False).str.strip()
-        df_cond_emp = df_cond[df_cond['Nit'] == nit_input]
-    except: df_cond_emp = pd.DataFrame()
-
-    try:
-        df_comp = conn.read(spreadsheet=URL_COMP, ttl=0)
-        df_comp.columns = df_comp.columns.str.strip()
-        df_comp['Nit'] = df_comp['Nit'].astype(str).str.replace('.0', '', regex=False).str.strip()
-        df_comp_emp = df_comp[df_comp['Nit'] == nit_input]
-    except: df_comp_emp = pd.DataFrame()
-
-    menu = st.sidebar.radio("Navegación", ["📊 Dashboard & Análisis", "📉 Seguimiento de Medidas", "🛠️ Registro Condiciones", "🧠 Registro Comportamiento"])
-
-    # --- PANTALLA 1: DASHBOARD Y ANÁLISIS ---
-    if menu == "📊 Dashboard & Análisis":
-        st.title(f"📊 Análisis de Datos Gerenciales - NIT: {nit_input}")
-        t1, t2 = st.tabs(["🔍 Análisis de Condiciones", "🧠 Análisis de Comportamiento"])
-
-        with t1:
-            if not df_cond_emp.empty:
-                col1, col2 = st.columns([2, 1])
-                with col1:
-                    st.plotly_chart(px.bar(df_cond_emp, x='Condición Crítica', color='Estado', title="Distribución de Hallazgos"), use_container_width=True)
-                with col2:
-                    st.write("### 📝 Espacio de Análisis Técnico")
-                    analisis_c = st.text_area("Diagnóstico de Condiciones HSEQ:", placeholder="Ej: Se observa un incremento en condiciones locativas...")
-                    plan_c = st.text_area("Plan de Acción Propuesto:", placeholder="Ej: Realizar jornada de orden y aseo en semana 15...")
-                
-                st.markdown("---")
-                st.write("### 📋 Base de Datos de Inspecciones")
-                st.dataframe(df_cond_emp, use_container_width=True)
-            else: st.warning("Sin datos para analizar en Condiciones.")
-
-        with t2:
-            if not df_comp_emp.empty:
-                col3, col4 = st.columns([2, 1])
-                with col3:
-                    st.plotly_chart(px.pie(df_comp_emp, names='Estado observado', title="Cultura de Seguridad", hole=0.4), use_container_width=True)
-                with col4:
-                    st.write("### 🧠 Análisis de Factor Humano")
-                    analisis_h = st.text_area("Diagnóstico de Comportamiento:", placeholder="Análisis de actos inseguros detectados...")
-                    medida_h = st.text_area("Intervención PESV/SST:", placeholder="Medidas para corregir conductas...")
-                
-                st.markdown("---")
-                st.write("### 📋 Histórico de Observaciones")
-                st.dataframe(df_comp_emp, use_container_width=True)
-            else: st.warning("Sin datos para analizar en Comportamiento.")
-
-    # --- PANTALLA 2: SEGUIMIENTO DE MEDIDAS (PHVA) ---
-    elif menu == "📉 Seguimiento de Medidas":
-        st.title("📉 Seguimiento a Medidas de Intervención")
-        st.info("Aquí puede visualizar y filtrar las tareas pendientes para asegurar el cierre de hallazgos.")
+# --- PANTALLA: GESTIÓN DE ACPM (VERSION FINAL CON COMPONENTE) ---
+    if menu == "⚖️ Gestión de ACPM":
+        st.title("⚖️ Central de Acciones Correctivas, Preventivas y de Mejora")
+        st.info("Este módulo centraliza hallazgos de todas las fuentes para el ciclo PHVA.")
         
-        if not df_cond_emp.empty:
-            # Filtramos solo lo que no está cerrado
-            pendientes = df_cond_emp[df_cond_emp['Estado'].str.upper() != 'CERRADO']
-            
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Tareas Pendientes", len(pendientes))
-            c2.metric("Total Hallazgos", len(df_cond_emp))
-            c3.metric("Nivel de Incumplimiento", f"{int((len(pendientes)/len(df_cond_emp))*100)}%" if len(df_cond_emp)>0 else "0%")
+        with st.expander("➕ REGISTRAR NUEVA ACPM (Análisis de Causa Raíz)"):
+            with st.form("form_acpm_v2"):
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    f_empresa = st.text_input("Unidad de Negocio / Sede")
+                    f_componente = st.selectbox("Componente del SIG", ["SST", "Ambiente", "Calidad", "Vial"])
+                    f_fuente = st.selectbox("Fuente del Hallazgo", [
+                        "inspecciones", "investigación de incidentes", 
+                        "auditorías internas y externas", "observación de tareas", 
+                        "reportes de actos y condiciones", "Legislación o normatividad", 
+                        "Revisión gerencial"
+                    ])
+                    f_desc = st.text_area("Descripción del Hallazgo")
+                    
+                    st.subheader("🧠 Metodología de los 5 Porqués")
+                    p1 = st.text_input("¿Por qué 1? (Problema directo)")
+                    p2 = st.text_input("¿Por qué 2?")
+                    p3 = st.text_input("¿Por qué 3?")
+                    p4 = st.text_input("¿Por qué 4?")
+                    p5 = st.text_input("¿Por qué 5? (Causa Raíz)")
+                    f_raiz = st.text_input("Definición Causa Raíz Final")
 
-            st.write("### 🚩 Alerta de Medidas de Intervención Pendientes")
-            st.table(pendientes[['Fecha', 'Condición Crítica', 'Hallazgo', 'Responsable del cierre', 'Estado']])
+                with col2:
+                    f_tipo = st.radio("Tipo de Acción", ["Correctiva", "Preventiva", "Mejora"])
+                    f_accion = st.text_area("Acción Propuesta (Medida de Intervención)")
+                    f_resp = st.text_input("Responsable de Ejecución")
+                    f_fec_c = st.date_input("Fecha Cierre Prevista", datetime.now())
+                    f_cambio = st.radio("¿Activa Gestión del Cambio? (IPVR / IAVI)", ["No", "Sí"])
+                    f_eficacia = st.selectbox("Eficacia de la acción", ["Pendiente", "Eficaz", "No Eficaz"])
+                    f_estado = st.selectbox("Estado de la ACPM", ["Abierta", "En Ejecución", "Cerrada"])
+                
+                if st.form_submit_button("💾 REGISTRAR ACCIÓN EN BDI"):
+                    # Lógica de nota para Gestión del Cambio
+                    nota_cambio = "Requiere actualización IPVR/IAVI" if f_cambio == "Sí" else "N/A"
+                    
+                    nueva_acpm = pd.DataFrame([{
+                        "Nit": str(nit_input), 
+                        "Empresa": f_empresa, 
+                        "Fecha de reporte": str(datetime.now().date()),
+                        "Componente": f_componente,
+                        "Fuente": f_fuente, 
+                        "Descripción Hallazgo": f_desc,
+                        "Análisis Causa ¿Porqué 1?": p1, 
+                        "Análisis Causa ¿Porqué 2?": p2,
+                        "Análisis Causa ¿Porqué 3?": p3, 
+                        "Análisis Causa ¿Porqué 4?": p4,
+                        "Análisis Causa ¿Porqué 5?": p5, 
+                        "Causa raíz": f_raiz,
+                        "Acción Propuesta": f_accion, 
+                        "Tipo Acción": f_tipo,
+                        "Responsable": f_resp, 
+                        "Fecha Cierre Prevista": str(f_fec_c),
+                        "Eficacia de la acción tomada": f_eficacia,
+                        "Gestión del Cambio": f"{f_cambio} - {nota_cambio}", 
+                        "Estado": f_estado
+                    }])
+                    
+                    # Unión y guardado (Uso de URL_ACPM definida anteriormente)
+                    df_upd = pd.concat([df_acpm_total, nueva_acpm], ignore_index=True)
+                    conn.update(spreadsheet=URL_ACPM, data=df_upd)
+                    st.success("ACPM centralizada y lista para seguimiento.")
+                    st.balloons()
+
+        st.markdown("---")
+        st.write(f"### 📑 Plan de Acción Unificado - {nit_input}")
+        
+        # Filtro rápido por Componente en la visualización
+        filtro_comp = st.multiselect("Filtrar por Componente:", ["SST", "Ambiente", "Calidad", "Vial"], default=["SST", "Ambiente", "Calidad", "Vial"])
+        
+        if not df_acpm_emp.empty:
+            df_vis = df_acpm_emp[df_acpm_emp['Componente'].isin(filtro_comp)]
+            st.dataframe(df_vis, use_container_width=True)
         else:
-            st.success("🎉 No hay medidas de intervención pendientes para este NIT.")
-
-    # --- MÓDULOS DE REGISTRO (SIN CAMBIOS) ---
-    elif menu == "🛠️ Registro Condiciones":
-        st.title("🛠️ Nuevo Reporte de Condiciones")
-        with st.form("f_cond"):
-            f_hall = st.text_area("Describa el Hallazgo")
-            f_cond = st.selectbox("Categoría", ["Orden y aseo", "Vial", "Locativo", "Eléctrico", "Otros"])
-            f_resp = st.text_input("Responsable Asignado")
-            f_est = st.selectbox("Estado Actual", ["Abierto", "En Proceso"])
-            if st.form_submit_button("✅ GUARDAR"):
-                nueva = pd.DataFrame([{"Nit":str(nit_input), "Fecha":str(datetime.now().date()), "Hallazgo":f_hall, "Condición Crítica":f_cond, "Responsable del cierre":f_resp, "Estado":f_est}])
-                conn.update(spreadsheet=URL_COND, data=pd.concat([df_cond, nueva], ignore_index=True))
-                st.success("Guardado. Revise el Dashboard de Análisis.")
-
-    elif menu == "🧠 Registro Comportamiento":
-        st.title("🧠 Nueva Observación Conductual")
-        with st.form("f_comp"):
-            f_obs = st.text_area("Detalle del Comportamiento")
-            f_tipo = st.selectbox("Tipo", ["Conducta", "PESV", "EPP"])
-            f_est_obs = st.selectbox("Calificación", ["✅ SEGURO", "⚠️ ATÍPICO", "🚫 PELIGROSO"])
-            if st.form_submit_button("🚀 REGISTRAR"):
-                nueva_c = pd.DataFrame([{"Nit":str(nit_input), "ID_Inspección":str(uuid.uuid4())[:8], "Fecha/Hora Real":str(datetime.now()), "Tipo de Inspección":f_tipo, "Estado observado":f_est_obs, "Observaciones Factor Humano":f_obs}])
-                conn.update(spreadsheet=URL_COMP, data=pd.concat([df_comp, nueva_c], ignore_index=True))
-                st.success("Registrado.")
-
-    elif menu == "📂 Carpeta PHVA":
-        st.link_button("📁 Abrir Drive", "https://drive.google.com/drive/u/0/folders/17o_kAZMRcGhDeI3vAd0dEk_UQJGYQWBZ")
+            st.info("No hay acciones registradas para este NIT.")
