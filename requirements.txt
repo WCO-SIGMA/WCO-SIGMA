@@ -3,4 +3,4 @@ st-gsheets-connection
 pandas
 plotly
 fpdf
-kaleido
+kaleido==0.2.1
