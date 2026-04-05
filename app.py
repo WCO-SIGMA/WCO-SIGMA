@@ -75,22 +75,33 @@ else:
                 txt_pl_comp = a4.text_area("Plan de Intervención Humana:", key="pl_h")
             else: st.warning("Sin datos en BDI COMPORTAMIENTO")
 
-        with tab3:
-            if not df_acpm_e.empty:
-                st.subheader("Gestión de Mejora Continua (ACPM)")
-                ca1, ca2 = st.columns(2)
-                with ca1:
-                    st.plotly_chart(px.pie(df_acpm_e, names='Componente', title="ACPM por Sistema", hole=0.4), use_container_width=True)
-                    st.plotly_chart(px.bar(df_acpm_e, x='Causa raíz', color='Estado', title="Análisis de Causa Raíz"), use_container_width=True)
-                with ca2:
-                    st.plotly_chart(px.bar(df_acpm_e, x='Fuente', color='Tipo Acción', title="Fuente vs Tipo de Acción"), use_container_width=True)
-                    st.plotly_chart(px.pie(df_acpm_e, names='Estado', title="Estatus de ACPM"), use_container_width=True)
-                
-                st.markdown("---")
-                txt_an_acpm = st.text_area("Evaluación de la Mejora Continua / Plan de Acción ACPM:", key="an_m")
-                st.dataframe(df_acpm_e, use_container_width=True)
-            else: 
-                st.error("Sin datos en BD ACPM. Verifique la URL y que el archivo tenga la columna 'Nit'.")
+       with tab3:
+            st.subheader("⚖️ Gestión de Mejora Continua (ACPM)")
+            
+            # --- BLOQUE DE DIAGNÓSTICO PARA WALTER ---
+            if df_acpm_t.empty:
+                st.error("❌ El sistema no logra leer el archivo. Verifica que la URL_ACPM sea correcta y que el archivo sea público o compartido con la cuenta de servicio.")
+            else:
+                if df_acpm_e.empty:
+                    st.warning(f"⚠️ El archivo se lee, pero no hay datos para el NIT: {nit_user}")
+                    with st.expander("🔍 CLIC AQUÍ PARA VER POR QUÉ NO HAY DATOS"):
+                        st.write("1. Columnas detectadas en tu Excel:", list(df_acpm_t.columns))
+                        st.write("2. ¿Existe la columna 'Nit'?:", "SÍ" if 'Nit' in df_acpm_t.columns else "NO (Revisa si escribiste NIT, nit, o N.I.T)")
+                        if 'Nit' in df_acpm_t.columns:
+                            st.write("3. Primeros 5 NITs encontrados en tu Excel:", df_acpm_t['Nit'].unique()[:5])
+                else:
+                    # --- SI HAY DATOS, GRAFICA NORMALMENTE ---
+                    ca1, ca2 = st.columns(2)
+                    with ca1:
+                        st.plotly_chart(px.pie(df_acpm_e, names='Componente', title="ACPM por Sistema", hole=0.4), use_container_width=True)
+                        st.plotly_chart(px.bar(df_acpm_e, x='Causa raíz', color='Estado', title="Análisis de Causa Raíz"), use_container_width=True)
+                    with ca2:
+                        st.plotly_chart(px.bar(df_acpm_e, x='Fuente', color='Tipo Acción', title="Fuente vs Tipo de Acción"), use_container_width=True)
+                        st.plotly_chart(px.pie(df_acpm_e, names='Estado', title="Estatus de ACPM"), use_container_width=True)
+                    
+                    st.markdown("---")
+                    txt_an_acpm = st.text_area("Evaluación de la Mejora Continua / Plan de Acción ACPM:", key="an_m_vfinal")
+                    st.dataframe(df_acpm_e, use_container_width=True)
 
     # --- LÓGICA DE FORMULARIOS (RESTANTE) ---
     # ... (Mantenemos los formularios de ayer que funcionan perfectamente)
