@@ -12,7 +12,7 @@ st.set_page_config(page_title="WCO-SIGMA SIG+ACPM", layout="wide")
 # --- CONFIGURACIÓN DE CONEXIONES ---
 URL_COND = "https://docs.google.com/spreadsheets/d/18OIJe409rr6o_o4HSweiuncIoOrgJOXEt0GFCmEsL4g/edit"
 URL_COMP = "https://docs.google.com/spreadsheets/d/1szrDZsA59e5sMF6OAzPeQ_nDX7E9lMehaXCPHmVNx5o/edit"
-URL_ACPM = "TU_URL_DE_BD_ACPM_AQUI" 
+URL_ACPM = "https://docs.google.com/spreadsheets/d/1yXQNE3PiET-8VOHBWiReht7psRqjbAm5ZnY4P2XQQvg/edit?gid=0#gid=0" 
 
 conn = st.connection("gsheets", type=GSheetsConnection)
 
