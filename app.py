@@ -5,7 +5,6 @@ import plotly.express as px
 from datetime import datetime
 import uuid
 from streamlit_canvas import st_canvas
-
 # 1. CONFIGURACIÓN DE PÁGINA
 st.set_page_config(page_title="WCO-SIGMA PRO", layout="wide")
 
