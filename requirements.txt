@@ -3,5 +3,5 @@ pandas
 plotly
 fpdf
 kaleido==0.2.1
-st-gsheets-connection
+gspread
 streamlit-drawable-canvas
