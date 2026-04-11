@@ -1,6 +1,7 @@
 streamlit
-st-gsheets-connection
+streamlit-drawable-canvas
 pandas
 plotly
+st-gsheets-connection
 fpdf
 kaleido==0.2.1
