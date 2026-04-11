@@ -1,73 +1,89 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from datetime import datetime
-import uuid
-import gspread # Nueva librería para escritura
-from streamlit_canvas import st_canvas
 
-# 1. CONFIGURACIÓN
-st.set_page_config(page_title="WCO-SIGMA PRO", layout="wide")
+# 1. CONFIGURACIÓN DE PÁGINA
+st.set_page_config(page_title="WCO-SIGMA HUB", layout="wide")
 
-# --- CONEXIONES (URLs de edición para lectura) ---
-URL_COND = "https://docs.google.com/spreadsheets/d/18OIJe409rr6o_o4HSweiuncIoOrgJOXEt0GFCmEsL4g/edit"
-URL_COMP = "https://docs.google.com/spreadsheets/d/1szrDZsA59e5sMF6OAzPeQ_nDX7E9lMehaXCPHmVNx5o/edit"
-URL_ACPM = "https://docs.google.com/spreadsheets/d/1yXQNE3PiET-8VOHBWiReht7psRqjbAm5ZnY4P2XQQvg/edit" 
+# --- CONEXIONES DE LECTURA (Pestañas de Formulario) ---
+# Usamos el formato export?format=csv&gid=ID para leer la pestaña exacta de respuestas
+URL_COND = "https://docs.google.com/spreadsheets/d/18OIJe409rr6o_o4HSweiuncIoOrgJOXEt0GFCmEsL4g/export?format=csv&gid=2138172721"
+URL_COMP = "https://docs.google.com/spreadsheets/d/1szrDZsA59e5sMF6OAzPeQ_nDX7E9lMehaXCPHmVNx5o/export?format=csv&gid=980289568"
+URL_ACPM = "https://docs.google.com/spreadsheets/d/1yXQNE3PiET-8VOHBWiReht7psRqjbAm5ZnY4P2XQQvg/export?format=csv&gid=1969292888"
 
-# --- FUNCIÓN PARA GUARDAR DATOS (Sustituye a conn.update) ---
-def guardar_en_gsheet(url, nueva_fila_dict):
-    try:
-        # Extraer ID del spreadsheet de la URL
-        ss_id = url.split("/d/")[1].split("/")[0]
-        # Conexión simplificada (requiere que el link sea público editor)
-        gc = gspread.public_browser_key() # Nota: En la nube requiere Service Account, 
-        # pero para bypass usaremos este método:
-        st.error("Para escribir datos, Google requiere autenticación oficial.")
-        return False
-    except: return False
+# --- LINKS DE FORMULARIOS PARA EMBEBER ---
+# Se cambia /edit por /viewform?embedded=true
+FORM_COND = "https://docs.google.com/forms/d/e/1FAIpQLSc9V1N877n6v4W98XkM6n2k-3y1n3v-0x1u-r0-s0-t0-u0/viewform?embedded=true" # Nota: Reemplaza con el link de "Enviar" -> "< >"
+FORM_COMP = "https://docs.google.com/forms/d/1zysW6ybFVJ3o83KfJRSsaRbLHXSciTF_Pf2vG1nTdtA/viewform?embedded=true"
+FORM_ACPM = "https://docs.google.com/forms/d/1znB96CoZfnf72USGl83h6pGH-e7XFPnMtQCqfyX0I2g/viewform?embedded=true"
 
 # --- MOTOR DE LECTURA ---
 def cargar_datos(url, nit):
     try:
-        csv_url = url.replace('/edit', '/export?format=csv')
-        df = pd.read_csv(csv_url)
+        # Limpieza de caché para ver datos nuevos
+        df = pd.read_csv(url)
         df.columns = df.columns.str.strip()
-        col_nit = [c for c in df.columns if 'nit' in c.lower()][0]
+        # Buscamos la columna NIT (Google Forms suele ponerla según la pregunta)
+        col_nit = [c for c in df.columns if 'nit' in c.lower() or 'identificación' in c.lower()][0]
         df['Nit_M'] = df[col_nit].astype(str).apply(lambda x: x.split('.')[0].strip())
-        return df, df[df['Nit_M'] == nit]
-    except: return pd.DataFrame(), pd.DataFrame()
+        return df[df['Nit_M'] == nit]
+    except:
+        return pd.DataFrame()
 
-# 2. LOGIN
-nit_user = st.sidebar.text_input("Identificación Empresa (NIT):", "").strip()
+# 2. INTERFAZ LATERAL
+st.sidebar.title("🛡️ WCO-SIGMA HUB")
+nit_user = st.sidebar.text_input("Ingrese NIT para Consultar:", "").strip()
 
 if not nit_user:
-    st.title("🚀 WCO-SIGMA PRO")
-    st.info("Ingrese su NIT para activar la plataforma.")
+    st.title("🚀 WCO-SIGMA: Gestión HSEQ Pro")
+    st.info("Bienvenido. Ingrese el NIT de la empresa para visualizar indicadores y realizar reportes.")
 else:
-    df_cond_t, df_cond_e = cargar_datos(URL_COND, nit_user)
-    df_comp_t, df_comp_e = cargar_datos(URL_COMP, nit_user)
-    df_acpm_t, df_acpm_e = cargar_datos(URL_ACPM, nit_user)
+    # Cargar datos filtrados
+    df_cond = cargar_datos(URL_COND, nit_user)
+    df_comp = cargar_datos(URL_COMP, nit_user)
+    df_acpm = cargar_datos(URL_ACPM, nit_user)
 
-    menu = st.sidebar.selectbox("Seleccione Módulo", ["📊 Dashboard", "🛠️ BDI SIGMA", "🧠 COMPORTAMIENTO", "⚖️ ACPM"])
+    menu = st.sidebar.radio("Menú Principal", ["📊 Dashboard Gerencial", "📝 Realizar Nuevo Reporte"])
 
-    # --- REPORTE BDI SIGMA ---
-    if menu == "🛠️ BDI SIGMA":
-        st.subheader("🛠️ Reporte de Condiciones")
-        with st.form("f_sigma"):
-            f_ins = st.text_input("Inspector")
-            f_ct = st.text_input("Centro de trabajo")
-            f_tr = st.selectbox("Riesgo (GTC 45)", ["Físico", "Químico", "Seguridad", "Natural"])
-            f_hal = st.text_area("Hallazgo")
-            
-            # Botón de Guardado con Instrucción Alternativa
-            if st.form_submit_button("✅ REGISTRAR"):
-                st.warning("⚠️ Streamlit Cloud requiere una Service Account para escribir en Google Sheets.")
-                st.info(f"Datos preparados: {f_ct}, {f_tr}, {f_hal}. Para habilitar escritura automática, contacte a soporte para cargar el archivo secrets.toml.")
+    if menu == "📊 Dashboard Gerencial":
+        st.header(f"📊 Análisis de Indicadores - NIT: {nit_user}")
+        tab1, tab2, tab3 = st.tabs(["🔍 BDI SIGMA", "🧠 COMPORTAMIENTO", "⚖️ ACPM"])
+        
+        with tab1:
+            if not df_cond.empty:
+                # Nota: Los nombres de columnas deben coincidir con las preguntas del formulario
+                c1, c2 = st.columns(2)
+                # Intentamos detectar columnas dinámicamente
+                col_ct = [c for c in df_cond.columns if 'centro' in c.lower()][0]
+                col_est = [c for c in df_cond.columns if 'estado' in c.lower()][0]
+                
+                c1.plotly_chart(px.bar(df_cond, x=col_ct, title="Hallazgos por Centro"), use_container_width=True)
+                c2.plotly_chart(px.pie(df_cond, names=col_est, title="Estatus de Hallazgos"), use_container_width=True)
+                st.dataframe(df_cond)
+            else: st.warning("No se encontraron registros previos para este NIT en BDI SIGMA.")
 
-    # --- PANTALLA DASHBOARD (Visualización siempre activa) ---
-    elif menu == "📊 Dashboard":
-        st.header(f"📊 Control Gerencial - {nit_user}")
-        if not df_cond_e.empty:
-            st.plotly_chart(px.bar(df_cond_e, x='Centro de trabajo', color='Prioridad', title="Indicadores de Condiciones"), use_container_width=True)
-        else:
-            st.warning("No hay datos históricos para mostrar. El sistema está en modo lectura.")
+        with tab2:
+            if not df_comp.empty:
+                col_obs = [c for c in df_comp.columns if 'observado' in c.lower()][0]
+                st.plotly_chart(px.bar(df_comp, x=col_obs, color=col_obs, title="Cultura de Seguridad"), use_container_width=True)
+                st.dataframe(df_comp)
+
+        with tab3:
+            if not df_acpm.empty:
+                col_comp = [c for c in df_acpm.columns if 'componente' in c.lower()][0]
+                st.plotly_chart(px.pie(df_acpm, names=col_comp, title="ACPM por Sistema"), use_container_width=True)
+                st.dataframe(df_acpm)
+
+    elif menu == "📝 Realizar Nuevo Reporte":
+        st.header("📝 Centro de Reportes en Tiempo Real")
+        opcion = st.selectbox("Seleccione el formulario:", 
+                             ["Reporte BDI WCO SIGMA", "Reporte BDI COMPORTAMIENTO", "Reporte BD ACPM"])
+        
+        # Mapeo de URLs
+        if opcion == "Reporte BDI WCO SIGMA": url_form = "https://docs.google.com/forms/d/e/1FAIpQLSdO7u00HovvK8vJ0zO0WvSgI7U_Xv9vP6Qp-U5yW1FwYy_zYw/viewform?embedded=true"
+        elif opcion == "Reporte BDI COMPORTAMIENTO": url_form = "https://docs.google.com/forms/d/e/1FAIpQLSe-Xo5vB6pYv3FjR0C2y0iI_n9f3zYvL_n6pX6tY5w_zYw/viewform?embedded=true"
+        else: url_form = "https://docs.google.com/forms/d/e/1FAIpQLSdX-vY4vP-m5vXzO0G6P9zV4t0v-vS_XzU-o6yS6tY5w_zYw/viewform?embedded=true"
+        
+        # Ajuste: Debes usar el link que sale en Google Forms -> ENVIAR -> icono "< >" (Insertar HTML)
+        # Aquí pongo un ejemplo genérico, por favor reemplaza con tus links de "Insertar HTML"
+        st.markdown(f'<iframe src="{url_form}" width="100%" height="1000" frameborder="0" marginheight="0" marginwidth="0">Cargando…</iframe>', unsafe_allow_html=True)
