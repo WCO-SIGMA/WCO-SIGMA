@@ -10,88 +10,71 @@ URL_COND = "https://docs.google.com/spreadsheets/d/18OIJe409rr6o_o4HSweiuncIoOrg
 URL_COMP = "https://docs.google.com/spreadsheets/d/1szrDZsA59e5sMF6OAzPeQ_nDX7E9lMehaXCPHmVNx5o/export?format=csv&gid=980289568"
 URL_ACPM = "https://docs.google.com/spreadsheets/d/1yXQNE3PiET-8VOHBWiReht7psRqjbAm5ZnY4P2XQQvg/export?format=csv&gid=1969292888"
 
-# --- MOTOR DE LECTURA ROBUSTO ---
-@st.cache_data(ttl=10) # Actualización rápida para pruebas
+@st.cache_data(ttl=10)
 def cargar_datos(url, nit):
     try:
         df = pd.read_csv(url)
         df.columns = df.columns.str.strip()
-        # Buscamos la columna de NIT/Identificación
+        # Buscar columna de NIT de forma flexible
         col_nit = [c for c in df.columns if 'nit' in c.lower() or 'identificación' in c.lower()]
-        if not col_nit:
-            return pd.DataFrame(), df.columns.tolist() # Retorna columnas para debug
+        if not col_nit: return pd.DataFrame()
         
         df['Nit_M'] = df[col_nit[0]].astype(str).apply(lambda x: x.split('.')[0].strip())
-        return df[df['Nit_M'] == nit], df.columns.tolist()
-    except Exception as e:
-        return pd.DataFrame(), []
+        return df[df['Nit_M'] == nit]
+    except: return pd.DataFrame()
 
 # 2. INTERFAZ
-st.sidebar.title("🛡️ WCO-SIGMA HUB")
 nit_user = st.sidebar.text_input("Ingrese NIT Empresa:", "").strip()
 
 if not nit_user:
     st.title("🚀 WCO-SIGMA PRO")
-    st.info("Ingrese el NIT para activar los indicadores.")
+    st.info("Ingrese el NIT para visualizar sus tableros.")
 else:
-    # Cargar datos
-    df_cond, cols_cond = cargar_datos(URL_COND, nit_user)
-    df_comp, cols_comp = cargar_datos(URL_COMP, nit_user)
-    df_acpm, cols_acpm = cargar_datos(URL_ACPM, nit_user)
+    df_cond = cargar_datos(URL_COND, nit_user)
+    df_comp = cargar_datos(URL_COMP, nit_user)
+    df_acpm = cargar_datos(URL_ACPM, nit_user)
 
-    menu = st.sidebar.radio("Navegación", ["📊 Dashboard Gerencial", "📝 Nuevo Reporte"])
+    menu = st.sidebar.radio("Menú", ["📊 Dashboard", "📝 Reportes"])
 
-    if menu == "📊 Dashboard Gerencial":
-        st.header(f"📊 Análisis de Gestión - NIT: {nit_user}")
+    if menu == "📊 Dashboard":
+        st.header(f"📊 Control Gerencial - NIT: {nit_user}")
         t1, t2, t3 = st.tabs(["🔍 BDI SIGMA", "🧠 COMPORTAMIENTO", "⚖️ ACPM"])
         
-        with t1:
+        with t1: # BDI SIGMA
             if not df_cond.empty:
-                # Búsqueda segura de columnas
-                c_ct = [c for c in df_cond.columns if 'centro' in c.lower()]
-                c_es = [c for c in df_cond.columns if 'estado' in c.lower()]
+                # Intentamos graficar solo lo que existe
+                cols = df_cond.columns.tolist()
+                c1, c2 = st.columns(2)
                 
-                col1, col2 = st.columns(2)
-                if c_ct:
-                    col1.plotly_chart(px.bar(df_cond, x=c_ct[0], title="Hallazgos por Centro", color=c_ct[0]), use_container_width=True)
-                if c_es:
-                    col2.plotly_chart(px.pie(df_cond, names=c_es[0], title="Estatus General"), use_container_width=True)
+                # Gráfico 1: Centro de Trabajo
+                ct = [c for c in cols if 'centro' in c.lower()]
+                if ct: c1.plotly_chart(px.bar(df_cond, x=ct[0], title="Hallazgos por Centro", color=ct[0]), use_container_width=True)
                 
-                st.write("### Tabla de Datos (BDI SIGMA)")
+                # Gráfico 2: Prioridad o Riesgo
+                pr = [c for c in cols if 'prioridad' in c.lower() or 'riesgo' in c.lower()]
+                if pr: c2.plotly_chart(px.pie(df_cond, names=pr[0], title="Distribución Crítica"), use_container_width=True)
+                
                 st.dataframe(df_cond)
-            else:
-                st.warning("No se encontraron registros de Condiciones para este NIT.")
-                if st.checkbox("Ver nombres de columnas detectadas (BDI SIGMA)"):
-                    st.write(cols_cond)
+            else: st.warning("No hay datos en BDI SIGMA.")
 
-        with t2:
+        with t2: # COMPORTAMIENTO
             if not df_comp.empty:
-                c_eo = [c for c in df_comp.columns if 'observado' in c.lower() or 'estado' in c.lower()]
-                if c_eo:
-                    st.plotly_chart(px.bar(df_comp, x=c_eo[0], color=c_eo[0], title="Cultura de Seguridad"), use_container_width=True)
+                eo = [c for c in df_comp.columns if 'observado' in c.lower() or 'estado' in c.lower()]
+                if eo: st.plotly_chart(px.bar(df_comp, x=eo[0], color=eo[0], title="Cultura de Seguridad"), use_container_width=True)
                 st.dataframe(df_comp)
-            else:
-                st.warning("Sin datos en Comportamiento.")
+            else: st.warning("No hay datos en Comportamiento.")
 
-        with t3:
+        with t3: # ACPM
             if not df_acpm.empty:
-                c_co = [c for c in df_acpm.columns if 'componente' in c.lower()]
-                if c_co:
-                    st.plotly_chart(px.pie(df_acpm, names=c_co[0], title="ACPM por Sistema"), use_container_width=True)
+                cp = [c for c in df_acpm.columns if 'componente' in c.lower()]
+                if cp: st.plotly_chart(px.pie(df_acpm, names=cp[0], title="ACPM por Componente"), use_container_width=True)
                 st.dataframe(df_acpm)
-            else:
-                st.warning("Sin datos en ACPM.")
+            else: st.warning("No hay datos en ACPM.")
 
-    elif menu == "📝 Nuevo Reporte":
-        st.header("📝 Centro de Reportes Digitales")
-        opcion = st.selectbox("Seleccione reporte:", ["BDI SIGMA", "COMPORTAMIENTO", "ACPM"])
-        
-        # Mapeo de URLs
-        urls = {
-            "BDI SIGMA": "https://docs.google.com/forms/d/e/1FAIpQLSc_Tu_ID_Sigma/viewform?embedded=true",
-            "COMPORTAMIENTO": "https://docs.google.com/forms/d/e/1FAIpQLSc_Tu_ID_Comp/viewform?embedded=true",
-            "ACPM": "https://docs.google.com/forms/d/e/1FAIpQLSc_Tu_ID_ACPM/viewform?embedded=true"
-        }
-        # NOTA: Reemplaza estos links con tus links de "Insertar HTML" (< >)
-        url_f = urls[opcion]
-        st.markdown(f'<iframe src="{url_f}" width="100%" height="900" frameborder="0">Cargando…</iframe>', unsafe_allow_html=True)
+    elif menu == "📝 Reportes":
+        st.header("📝 Registro de Inspección")
+        # Aquí van tus enlaces reales de "Insertar HTML"
+        st.info("Seleccione el módulo desde el formulario de Google abajo.")
+        # Reemplaza con tu link de BDI SIGMA (el de < >)
+        url_f = "https://docs.google.com/forms/d/e/15BeH-wHD4VJ63EARiHjTEZOUoStbk6o50zSrYmS5SQc/viewform?embedded=true"
+        st.markdown(f'<iframe src="{url_f}" width="100%" height="800" frameborder="0">Cargando…</iframe>', unsafe_allow_html=True)
